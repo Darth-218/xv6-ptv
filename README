@@ -77,6 +77,58 @@ Phase 7: Test in QEMU                        All
   - Run pstree to verify the output shows init, sh, and descendant processes.
   - Test edge cases: fork chains, orphans, zombies.
 
+Data Flow & Interfaces
+----------------------
+
+Kernel proc[] ──► sys_getprocs() ──► copyout() ──► getprocs() ──► pstree.c
+
+struct proc (kernel)          struct pinfo (shared)         user program
+┌────────────────────┐       ┌────────────────────┐       ┌──────────────────┐
+│ pid                │       │ int pid            │       │ getprocs(buf, N) │
+│ state (enum)       │ ───► │ int ppid           │ ───► │ returns count    │
+│ parent (struct*)   │       │ int state          │       │ or -1            │
+│ name[16]           │       │ char name[16]      │       └──────────────────┘
+└────────────────────┘       └────────────────────┘                │
+      │                        ▲                                   ▼
+      │  acquire(wait_lock)    │  copyout()              ┌──────────────────┐
+      │  for each proc:        │  per entry              │ pid→children map │
+      │  read pid/state/name   │                         │ DFS from PID 1   │
+      │  parent->pid → ppid    │                         │ formatted output │
+      └────────────────────────┘                         └──────────────────┘
+
+Kernel syscall contract:
+  INPUT:  (uint64 buf_addr, int max_count)       via argaddr(), argint()
+  ACCESS: acquire(wait_lock), then per-entry p->lock
+  OUTPUT: count of processes copied to buf, or -1 on copyout() failure
+  GUARANTEE: each struct pinfo has valid pid, ppid (-1 if no parent),
+             state (0-5), name (null-terminated, max 16 bytes)
+
+User-side getprocs() contract:
+  CALL:   n = getprocs(pinfo_array, NPROC)
+  INPUT:  pinfo_array - user-allocated struct pinfo buffer
+  INPUT:  NPROC (64)  - max entries the buffer can hold
+  RETURN: n > 0       - number of active processes copied
+          n == -1     - system call error
+
+State values returned by kernel:
+  0 = UNUSED     (excluded from results)
+  1 = USED       (allocated but not yet running)
+  2 = SLEEPING
+  3 = RUNNABLE
+  4 = RUNNING
+  5 = ZOMBIE
+
+pstree.c internal algorithm:
+  1. Call getprocs(procs, NPROC)
+  2. Build adjacency: for each process, add pid to parent_children[ppid]
+  3. DFS from PID 1 (init), printing with depth indentation
+  4. Output format: "name(pid)" with "  └── " prefix per depth level
+
+Expected output example:
+  init(1)
+    └── sh(2)
+        └── pstree(3)
+
 Building and Running
 --------------------
 
