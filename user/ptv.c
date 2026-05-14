@@ -4,15 +4,8 @@
 #include "kernel/param.h"
 #include "kernel/pinfo.h"
 
-#define MAX_CHILDREN 64
-
-struct child_list {
-  int pids[MAX_CHILDREN];
-  int count;
-};
-
 void
-dfs(int pid, int depth, struct pinfo *procs, int n, struct child_list *children)
+dfs(int pid, int depth, struct pinfo *procs, int n)
 {
   for (int i = 0; i < depth; i++)
     printf("  ");
@@ -21,7 +14,7 @@ dfs(int pid, int depth, struct pinfo *procs, int n, struct child_list *children)
 
   for (int i = 0; i < n; i++) {
     if (procs[i].pid == pid) {
-      if (procs[i].state == 5)  // ZOMBIE
+      if (procs[i].state == 5)
         printf("%s(%d,ZOMBIE)\n", procs[i].name, pid);
       else
         printf("%s(%d)\n", procs[i].name, pid);
@@ -29,15 +22,15 @@ dfs(int pid, int depth, struct pinfo *procs, int n, struct child_list *children)
     }
   }
 
-  for (int i = 0; i < children[pid].count; i++)
-    dfs(children[pid].pids[i], depth + 1, procs, n, children);
+  for (int i = 0; i < n; i++)
+    if (procs[i].ppid == pid)
+      dfs(procs[i].pid, depth + 1, procs, n);
 }
 
 int
 main(void)
 {
   struct pinfo procs[NPROC];
-  struct child_list children[NPROC];
   int n = getprocs(procs, NPROC);
 
   if (n < 0) {
@@ -45,28 +38,16 @@ main(void)
     exit(1);
   }
 
-  for (int i = 0; i < NPROC; i++)
-    children[i].count = 0;
-
-  for (int i = 0; i < n; i++) {
-    int ppid = procs[i].ppid;
-    if (ppid >= 0 && ppid < NPROC) {
-      struct child_list *cl = &children[ppid];
-      if (cl->count < MAX_CHILDREN)
-        cl->pids[cl->count++] = procs[i].pid;
-    }
-  }
-
   int visited = 0;
   for (int i = 0; i < n; i++) {
     if (procs[i].ppid == -1) {
-      dfs(procs[i].pid, 0, procs, n, children);
+      dfs(procs[i].pid, 0, procs, n);
       visited++;
     }
   }
 
   if (visited == 0)
-    dfs(1, 0, procs, n, children);
+    dfs(1, 0, procs, n);
 
   exit(0);
 }
