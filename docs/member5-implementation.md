@@ -2,12 +2,12 @@
 
 ## Role: Visualizer Enhancements + End-to-End Integration
 
-Member 5 works alongside Member 3 on `user/pstree.c` and helps Member 4
+Member 5 works alongside Member 3 on `user/ptv.c` and helps Member 4
 validate the full pipeline.
 
 ### Visualizer enhancements
 
-**1. State-aware formatting** — `user/pstree.c`
+**1. State-aware formatting** — `user/ptv.c`
 
 Enhance the DFS output to show process state:
 
@@ -62,11 +62,11 @@ Total: 5 processes
 | 1 | Build kernel | `make kernel/kernel` succeeds |
 | 2 | Build filesystem | `make fs.img` succeeds |
 | 3 | Boot QEMU | `make qemu` boots to shell |
-| 4 | Run pstree | `pstree` prints tree |
-| 5 | Run zombie test | `zombie` then `pstree` shows ZOMBIE |
-| 6 | Run forktree test | `forktree` then `pstree` shows hierarchy |
-| 7 | Run orphantree test | `orphantree` then `pstree` shows orphans |
-| 8 | Stress test | Run `pstree` repeatedly while other programs run |
+| 4 | Run ptv | `ptv` prints tree |
+| 5 | Run zombie test | `zombie` then `ptv` shows ZOMBIE |
+| 6 | Run forktree test | `forktree` then `ptv` shows hierarchy |
+| 7 | Run orphantree test | `orphantree` then `ptv` shows orphans |
+| 8 | Stress test | Run `ptv` repeatedly while other programs run |
 
 ### Common debugging scenarios
 

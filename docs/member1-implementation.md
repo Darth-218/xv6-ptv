@@ -24,7 +24,7 @@ Fields:
 - **name**: Null-terminated process name (max 16 bytes including NUL).
 
 This header is included by both kernel (`kernel/sysproc.c`) and user-space
-programs (`user/pstree.c`, `user/user.h`).
+programs (`user/ptv.c`, `user/user.h`).
 
 ## Phase 3: Kernel Syscall Handler (`kernel/sysproc.c`)
 

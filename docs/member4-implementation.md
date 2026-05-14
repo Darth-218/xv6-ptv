@@ -78,36 +78,36 @@ int main(void) {
 Add the following functions to `test-xv6.py`:
 
 ```python
-def test_pstree():
-    """Boot xv6, run pstree, validate process tree output."""
+def test_ptv():
+    """Boot xv6, run ptv, validate process tree output."""
     q = QEMU(True)
-    q.cmd("pstree\n")
+    q.cmd("ptv\n")
     q.monitor(r'^init\(1\)', timeout=10)
     q.read()
     
     lines = q.lines()
     # verify init is the root
     if not any(re.match(r'^init\(1\)', l) for l in lines):
-        print("FAIL: init(1) not found in pstree output")
+        print("FAIL: init(1) not found in ptv output")
         q.stop()
         sys.exit(1)
     print("OK: init(1) found")
     
     # verify sh is a child of init
     if not any(re.match(r'.*sh\(', l) for l in lines):
-        print("FAIL: sh not found in pstree output")
+        print("FAIL: sh not found in ptv output")
         q.stop()
         sys.exit(1)
     print("OK: sh found")
     
     q.stop()
 
-def test_pstree_forktree():
-    """Run forktree test then pstree, verify multi-level hierarchy."""
+def test_ptv_forktree():
+    """Run forktree test then ptv, verify multi-level hierarchy."""
     q = QEMU(True)
     q.cmd("forktree\n")
     time.sleep(3)
-    q.cmd("pstree\n")
+    q.cmd("ptv\n")
     time.sleep(1)
     q.read()
     
@@ -115,18 +115,18 @@ def test_pstree_forktree():
     # should show forktree and its children in tree
     found = any(re.search(r'forktree', l) for l in lines)
     if found:
-        print("OK: forktree found in pstree output")
+        print("OK: forktree found in ptv output")
     else:
         print("FAIL: forktree not found")
     
     q.stop()
 
-def test_pstree_orphans():
+def test_ptv_orphans():
     """Run orphantree test, verify orphans shown under init."""
     q = QEMU(True)
     q.cmd("orphantree\n")
     time.sleep(3)
-    q.cmd("pstree\n")
+    q.cmd("ptv\n")
     time.sleep(1)
     q.read()
     
@@ -140,13 +140,13 @@ def test_pstree_orphans():
     
     q.stop()
 
-def test_pstree_zombies():
+def test_ptv_zombies():
     """Verify zombie processes are marked in the tree."""
     q = QEMU(True)
     # existing zombie test program
     q.cmd("zombie\n")
     time.sleep(2)
-    q.cmd("pstree\n")
+    q.cmd("ptv\n")
     time.sleep(1)
     q.read()
     
@@ -162,17 +162,17 @@ def test_pstree_zombies():
 
 Register in `main()` so tests run via:
 ```
-./test-xv6.py pstree
-./test-xv6.py pstree_forktree
-./test-xv6.py pstree_orphans
-./test-xv6.py pstree_zombies
+./test-xv6.py ptv
+./test-xv6.py ptv_forktree
+./test-xv6.py ptv_orphans
+./test-xv6.py ptv_zombies
 ```
 
 ### Test scenarios summary
 
 | Test | What it validates |
 |------|-------------------|
-| `pstree` | Basic tree: init(1) root + sh(2) child |
-| `pstree_forktree` | Multi-level hierarchy renders correctly |
-| `pstree_orphans` | Orphaned processes reparented to init |
-| `pstree_zombies` | Zombie processes marked with ZOMBIE label |
+| `ptv` | Basic tree: init(1) root + sh(2) child |
+| `ptv_forktree` | Multi-level hierarchy renders correctly |
+| `ptv_orphans` | Orphaned processes reparented to init |
+| `ptv_zombies` | Zombie processes marked with ZOMBIE label |

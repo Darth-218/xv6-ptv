@@ -31,7 +31,7 @@ Add declaration with existing syscalls (after line 26 `int uptime(void);`):
 int getprocs(struct pinfo*, int);
 ```
 
-## Phase 5: Visualizer Program (`user/pstree.c`)
+## Phase 5: Visualizer Program (`user/ptv.c`)
 
 ### Algorithm
 
@@ -108,7 +108,7 @@ int main(void) {
 ### `Makefile:147` — Add to UPROGS
 
 ```makefile
-$U/_pstree\
+$U/_ptv\
 ```
 
 Add in alphabetical position or at end of the `UPROGS=\` list (before the blank line).
@@ -119,7 +119,7 @@ Add in alphabetical position or at end of the `UPROGS=\` list (before the blank 
 |------|----------|
 | **Orphan processes** | Handled by root detection (`ppid == -1`); each root is printed separately |
 | **Zombie processes** | Detected by `state == 5`; append `,ZOMBIE` to the label |
-| **Empty process table** | `getprocs` returns 0; pstree prints nothing and exits cleanly |
+| **Empty process table** | `getprocs` returns 0; ptv prints nothing and exits cleanly |
 | **Large trees** | `MAX_CHILDREN = 64` matches NPROC limit; each parent can have up to 64 children |
 | **PID 1 not found** | Fallback prints from PID 1 regardless; handles edge case where init is temporarily UNUSED |
 | **Buffer overflow** | `children[]` indexed by PID; PIDs can exceed NPROC-1; guard with `ppid >= 0 && ppid < NPROC` |
@@ -129,5 +129,5 @@ Add in alphabetical position or at end of the `UPROGS=\` list (before the blank 
 ```
 init(1)
   └── sh(2)
-      └── pstree(3)
+      └── ptv(3)
 ```

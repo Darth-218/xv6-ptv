@@ -1,7 +1,7 @@
 xv6 Process Tree Visualizer
 CSCI-315: Operating Systems Project
 
-A pstree-like tool for xv6 that displays parent-child process relationships,
+A ptv-like tool for xv6 that displays parent-child process relationships,
 PIDs, and process states. The visualizer runs as a user-space program that
 retrieves process information from the kernel via a new system call and renders
 a formatted process tree.
@@ -22,7 +22,7 @@ Member 2 - Kernel System Call Developer
   - Handle kernel-to-user data copying with copyout().
 
 Member 3 - User-Space Visualizer Developer
-  - Create user/pstree.c: a user program that calls getprocs() and displays
+  - Create user/ptv.c: a user program that calls getprocs() and displays
     the process tree.
   - Build tree from parent-child relationships (adjacency list + DFS).
   - Render output with proper indentation and formatting.
@@ -30,7 +30,7 @@ Member 3 - User-Space Visualizer Developer
 Member 4 - Testing & Validation Engineer
   - Write test programs exercising fork, orphan, zombie, and multi-level
     process hierarchies.
-  - Add a test_pstree() function to test-xv6.py that boots xv6, runs pstree,
+  - Add a test_ptv() function to test-xv6.py that boots xv6, runs ptv,
     and validates the process tree output programmatically.
   - Verify accuracy of parent-child relationships and process states.
 
@@ -61,26 +61,26 @@ Phase 4: Create User-Space Stub              Member 3
   - Declare int getprocs(struct pinfo*, int) in user/user.h.
 
 Phase 5: Write Visualizer Program            Members 3, 5
-  - Create user/pstree.c:
+  - Create user/ptv.c:
     1. Call getprocs(procs, NPROC) to fetch all process data.
     2. Find PID 1 (init) as the tree root.
     3. Recursively print children where child.ppid == parent.pid.
     4. Use indentation for depth: e.g., "  \342\224\224\342\224\200 name(pid)".
-  - Add $U/_pstree to UPROGS in the Makefile.
+  - Add $U/_ptv to UPROGS in the Makefile.
 
-Phase 6: Add pstree to test-xv6.py           Member 4
-  - Write a test_pstree() function that boots xv6 in QEMU, runs pstree,
+Phase 6: Add ptv to test-xv6.py           Member 4
+  - Write a test_ptv() function that boots xv6 in QEMU, runs ptv,
     and validates the process tree output programmatically using regex.
 
 Phase 7: Test in QEMU                        All
   - Boot xv6: make qemu
-  - Run pstree to verify the output shows init, sh, and descendant processes.
+  - Run ptv to verify the output shows init, sh, and descendant processes.
   - Test edge cases: fork chains, orphans, zombies.
 
 Data Flow & Interfaces
 ----------------------
 
-Kernel proc[] ──► sys_getprocs() ──► copyout() ──► getprocs() ──► pstree.c
+Kernel proc[] ──► sys_getprocs() ──► copyout() ──► getprocs() ──► ptv.c
 
 struct proc (kernel)          struct pinfo (shared)         user program
 ┌────────────────────┐       ┌────────────────────┐       ┌──────────────────┐
@@ -118,7 +118,7 @@ State values returned by kernel:
   4 = RUNNING
   5 = ZOMBIE
 
-pstree.c internal algorithm:
+ptv.c internal algorithm:
   1. Call getprocs(procs, NPROC)
   2. Build adjacency: for each process, add pid to parent_children[ppid]
   3. DFS from PID 1 (init), printing with depth indentation
@@ -127,19 +127,19 @@ pstree.c internal algorithm:
 Expected output example:
   init(1)
     └── sh(2)
-        └── pstree(3)
+        └── ptv(3)
 
 Building and Running
 --------------------
 
-1. Build xv6 with the new syscall and pstree program:
+1. Build xv6 with the new syscall and ptv program:
    $ make
 
 2. Run in QEMU:
    $ make qemu
 
 3. In the xv6 shell, run the visualizer:
-   $ pstree
+   $ ptv
 
 Development Environment
 -----------------------
