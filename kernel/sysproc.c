@@ -6,6 +6,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "pinfo.h"
+
+extern struct proc proc[NPROC];
+extern struct spinlock wait_lock;
 
 uint64
 sys_exit(void)
@@ -106,4 +110,42 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_getprocs(void)
+{
+  uint64 buf;
+  int max_count;
+  struct proc *p;
+  struct pinfo pi;
+  int count = 0;
+
+  argaddr(0, &buf);
+  argint(1, &max_count);
+
+  if (max_count <= 0)
+    return -1;
+
+  acquire(&wait_lock);
+  for (p = proc; p < &proc[NPROC] && count < max_count; p++) {
+    acquire(&p->lock);
+    if (p->state == UNUSED) {
+      release(&p->lock);
+      continue;
+    }
+    pi.pid = p->pid;
+    pi.state = p->state;
+    safestrcpy(pi.name, p->name, sizeof(pi.name));
+    pi.ppid = (p->parent != 0) ? p->parent->pid : -1;
+    release(&p->lock);
+
+    if (copyout(myproc()->pagetable, buf + count * sizeof(pi), (char *)&pi, sizeof(pi)) < 0) {
+      release(&wait_lock);
+      return -1;
+    }
+    count++;
+  }
+  release(&wait_lock);
+  return count;
 }
