@@ -199,6 +199,85 @@ def test_usertests(test=""):
     q.monitor('^ALL TESTS PASSED', progress='test', timeout=timeout)
     q.stop()
 
+def test_pstree():
+    """Boot xv6, run ptv, validate process tree output."""
+    print("Test basic process tree")
+    q = QEMU(True)
+    q.cmd("ptv\n")
+    q.monitor(r'^init\(1\)', timeout=10)
+
+    lines = q.lines()
+    if not any(re.match(r'^init\(1\)', l) for l in lines):
+        print("FAIL: init(1) not found in ptv output")
+        q.stop()
+        sys.exit(1)
+    print("OK: init(1) found")
+
+    if not any(re.search(r'sh\(', l) for l in lines):
+        print("FAIL: sh not found in ptv output")
+        q.stop()
+        sys.exit(1)
+    print("OK: sh found")
+
+    q.stop()
+
+def test_pstree_forktree():
+    """Run forktree then ptv, verify multi-level hierarchy."""
+    print("Test forktree hierarchy in ptv")
+    q = QEMU(True)
+    q.cmd("forktree\n")
+    time.sleep(3)
+    q.cmd("ptv\n")
+    time.sleep(1)
+    q.read()
+
+    lines = q.lines()
+    if not any(re.search(r'forktree', l) for l in lines):
+        print("FAIL: forktree not found in ptv output")
+        q.stop()
+        sys.exit(1)
+    print("OK: forktree found in ptv output")
+
+    q.stop()
+
+def test_pstree_orphans():
+    """Run orphantree then ptv, verify orphans shown under init."""
+    print("Test orphan reparenting in ptv")
+    q = QEMU(True)
+    q.cmd("orphantree\n")
+    time.sleep(3)
+    q.cmd("ptv\n")
+    time.sleep(1)
+    q.read()
+
+    lines = q.lines()
+    if not any(re.search(r'orphantree', l) for l in lines):
+        print("FAIL: orphantree not found in ptv output")
+        q.stop()
+        sys.exit(1)
+    print("OK: orphaned process found in ptv output")
+
+    q.stop()
+
+def test_pstree_zombies():
+    """Verify zombie processes are marked in ptv output."""
+    print("Test zombie marking in ptv")
+    q = QEMU(True)
+    q.cmd("zombie\n")
+    time.sleep(2)
+    q.cmd("ptv\n")
+    time.sleep(1)
+    q.read()
+
+    lines = q.lines()
+    if not any(re.search(r'ZOMBIE', l) for l in lines):
+        print("FAIL: no ZOMBIE marker found in ptv output")
+        q.stop()
+        sys.exit(1)
+    print("OK: zombie process marked in ptv output")
+
+    q.stop()
+
 def main():
     print(args)
     rex = r'%s' % args.testrex

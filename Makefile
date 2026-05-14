@@ -145,6 +145,8 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
+	$U/_forktree\
+	$U/_orphantree\
 	$U/_ptv\
 
 fs.img: mkfs/mkfs README $(UPROGS)
