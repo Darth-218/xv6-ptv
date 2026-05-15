@@ -1,5 +1,11 @@
 #ifndef _PINFO_H
 #define _PINFO_H
+#define UNUSED     0
+#define USED       1
+#define SLEEPING   2
+#define RUNNABLE   3
+#define RUNNING    4
+#define ZOMBIE     5
 
 struct pinfo {
     int pid;     // Process ID
