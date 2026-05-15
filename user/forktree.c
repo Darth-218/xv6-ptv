@@ -8,26 +8,24 @@
 #include "user/user.h"
 
 void
-fork_child(int depth, int max_depth)
+fork_tree(int start_depth, int max_depth)
 {
   int pid;
 
-  if (depth >= max_depth - 1) {
+  for (int depth = start_depth; depth < max_depth - 1; depth++) {
     pid = fork();
     if (pid < 0)
       exit(1);
     if (pid == 0)
-      exit(0);
+      continue;
     for (;;) pause(10);
   }
 
   pid = fork();
   if (pid < 0)
     exit(1);
-  if (pid == 0) {
-    fork_child(depth + 1, max_depth);
+  if (pid == 0)
     exit(0);
-  }
   for (;;) pause(10);
 }
 
@@ -39,7 +37,7 @@ main(void)
   if (pid < 0)
     exit(1);
   if (pid == 0) {
-    fork_child(0, 4);
+    fork_tree(0, 4);
     for (;;) pause(10);
   }
   printf("forktree done\n");
