@@ -1,4 +1,3 @@
-// user/ptv.c - Enhanced Process Tree Visualizer with Colors
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user/user.h"
@@ -7,7 +6,6 @@
 
 #define MAX_DEPTH 32
 
-// ANSI Color Codes
 #define COLOR_RESET   "\033[0m"
 #define COLOR_RED     "\033[31m"     // Zombie, Unused
 #define COLOR_GREEN   "\033[32m"     // Running
@@ -16,9 +14,7 @@
 #define COLOR_CYAN    "\033[36m"     // Normal/USED
 #define COLOR_BOLD    "\033[1m"      // Bold for root (init)
 
-// Print a single process with state-aware formatting and colors
 void print_process(struct pinfo *p, int depth, int is_root) {
-    // Indentation
     for (int i = 0; i < depth; i++) {
         if (i == depth - 1)
             printf("  └── ");
@@ -38,7 +34,6 @@ void print_process(struct pinfo *p, int depth, int is_root) {
         printf("%s(%d)\n", p->name, p->pid);
 }
 
-// DFS using linear scan (handles large PIDs safely)
 void dfs(int parent_pid, int depth, struct pinfo *procs, int n, int *count) {
     for (int i = 0; i < n; i++) {
         if (procs[i].ppid == parent_pid) {
