@@ -6,15 +6,6 @@
 #define NPROC 64
 #define MAX_DEPTH 32
 
-static const char *state_str[] = {
-    [0] "UNUSED",
-    [1] "USED",
-    [2] "SLEEPING",
-    [3] "RUNNABLE",
-    [4] "RUNNING",
-    [5] "ZOMBIE",
-};
-
 void print_process(struct pinfo *p, int depth) {
     for (int i = 0; i < depth; i++) {
         if (i == depth - 1)
