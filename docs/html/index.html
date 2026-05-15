@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>xv6 Process Tree Visualizer (ptv) — Specification</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" id="hljs-light">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" id="hljs-dark" disabled>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/diff.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/perl.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/makefile.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+</head>
+<body>
+<nav class="toc">
+<div class="toc-header"><button id="theme-toggle">🌙</button>
+<button id="toggle-all">▼ Expand All</button></div>
+<input id="search-input" type="text" placeholder="Search sections...">
+<a href="#xv6-process-tree-visualizer-ptv-full-specification" class="toc-h1">xv6 Process Tree Visualizer (ptv) — Full Specification</a>
+<a href="#1-project-overview" class="toc-h2">1. Project Overview</a>
+<a href="#team-roles" class="toc-h3">Team Roles</a>
+<a href="#2-architecture-data-flow" class="toc-h2">2. Architecture &amp; Data Flow</a>
+<a href="#boundary-crossing" class="toc-h3">Boundary crossing</a>
+<a href="#3-kernel-components" class="toc-h2">3. Kernel Components</a>
+<a href="#31-kernelpinfoh-shared-data-structure" class="toc-h3">3.1 `kernel/pinfo.h` — Shared Data Structure</a>
+<a href="#32-kernelsyscallh-system-call-number" class="toc-h3">3.2 `kernel/syscall.h` — System Call Number</a>
+<a href="#33-kernelsyscallc-dispatch-wiring" class="toc-h3">3.3 `kernel/syscall.c` — Dispatch Wiring</a>
+<a href="#34-kernelsysprocc-syscall-handler-implementation" class="toc-h3">3.4 `kernel/sysproc.c` — Syscall Handler Implementation</a>
+<a href="#sysgetprocs-lines-115-151" class="toc-h4">`sys_getprocs()` (lines 115-151)</a>
+<a href="#locking-protocol" class="toc-h4">Locking Protocol</a>
+<a href="#edge-cases-handled" class="toc-h4">Edge Cases Handled</a>
+<a href="#4-user-space-components" class="toc-h2">4. User-Space Components</a>
+<a href="#41-userusyspl-syscall-trampoline-generator" class="toc-h3">4.1 `user/usys.pl` — Syscall Trampoline Generator</a>
+<a href="#42-useruserh-user-space-declarations" class="toc-h3">4.2 `user/user.h` — User-Space Declarations</a>
+<a href="#43-userptvc-visualizer-program-84-lines" class="toc-h3">4.3 `user/ptv.c` — Visualizer Program (84 lines)</a>
+<a href="#function-printprocess-lines-9-27" class="toc-h4">Function: `print_process()` (lines 9-27)</a>
+<a href="#function-dfs-lines-29-37" class="toc-h4">Function: `dfs()` (lines 29-37)</a>
+<a href="#function-main-lines-39-83" class="toc-h4">Function: `main()` (lines 39-83)</a>
+<a href="#algorithm-summary" class="toc-h4">Algorithm summary</a>
+<a href="#expected-output" class="toc-h4">Expected output</a>
+<a href="#5-test-programs" class="toc-h2">5. Test Programs</a>
+<a href="#51-userforktreec-multi-level-fork-hierarchy-46-lines" class="toc-h3">5.1 `user/forktree.c` — Multi-Level Fork Hierarchy (46 lines)</a>
+<a href="#52-userorphantreec-orphan-reparenting-test-25-lines" class="toc-h3">5.2 `user/orphantree.c` — Orphan Reparenting Test (25 lines)</a>
+<a href="#53-userzombiec-zombie-process-test-28-lines" class="toc-h3">5.3 `user/zombie.c` — Zombie Process Test (28 lines)</a>
+<a href="#6-test-automation-test-xv6py" class="toc-h2">6. Test Automation — `test-xv6.py`</a>
+<a href="#61-testptvbasic-lines-202-222" class="toc-h3">6.1 `test_ptv_basic()` (lines 202-222)</a>
+<a href="#62-testptvforktree-lines-224-241" class="toc-h3">6.2 `test_ptv_forktree()` (lines 224-241)</a>
+<a href="#63-testptvorphans-lines-243-260" class="toc-h3">6.3 `test_ptv_orphans()` (lines 243-260)</a>
+<a href="#64-testptvzombies-lines-262-279" class="toc-h3">6.4 `test_ptv_zombies()` (lines 262-279)</a>
+<a href="#test-runner" class="toc-h3">Test runner</a>
+<a href="#7-build-system-makefile" class="toc-h2">7. Build System — Makefile</a>
+<a href="#uprogs-additions-lines-148-150" class="toc-h3">UPROGS additions (lines 148-150)</a>
+<a href="#build-commands" class="toc-h3">Build commands</a>
+<a href="#8-full-file-manifest" class="toc-h2">8. Full File Manifest</a>
+<a href="#9-syscall-contract-reference" class="toc-h2">9. Syscall Contract Reference</a>
+<a href="#getprocs-kernel-to-user-process-data-transfer" class="toc-h3">`getprocs()` — kernel-to-user process data transfer</a>
+<a href="#caller-user-space" class="toc-h4">Caller (user-space)</a>
+<a href="#callee-kernel-space" class="toc-h4">Callee (kernel-space)</a>
+<a href="#guarantees" class="toc-h4">Guarantees</a>
+<a href="#10-implementation-phases" class="toc-h2">10. Implementation Phases</a>
+<a href="#11-development-environment" class="toc-h2">11. Development Environment</a>
+<a href="#docker" class="toc-h3">Docker</a>
+<a href="#toolchain" class="toc-h3">Toolchain</a>
+<a href="#12-state-constants-reference" class="toc-h2">12. State Constants Reference</a>
+<a href="#13-data-structure-struct-pinfo" class="toc-h2">13. Data Structure: `struct pinfo`</a>
+<a href="#14-known-issues-potential-improvements" class="toc-h2">14. Known Issues &amp; Potential Improvements</a>
+<a href="#fixed" class="toc-h3">Fixed</a>
+<a href="#current" class="toc-h3">Current</a>
+<a href="#potential" class="toc-h3">Potential</a>
+<a href="#15-file-dependency-graph" class="toc-h2">15. File Dependency Graph</a>
+</nav>
+
+<main>
+<h1 id="xv6-process-tree-visualizer-ptv-full-specification">xv6 Process Tree Visualizer (ptv) — Full Specification<a class="header-anchor" href="#xv6-process-tree-visualizer-ptv-full-specification">#</a></h1>
+
+<h2 id="1-project-overview">1. Project Overview<a class="header-anchor" href="#1-project-overview">#</a></h2>
+
+<p><strong>Course:</strong> CSCI-315 Operating Systems  
+<strong>Goal:</strong> A <code>pstree</code>-like tool for xv6 that displays parent-child process
+relationships, PIDs, and process states.  
+<strong>Program name:</strong> <code>ptv</code> (Process Tree Visualizer)</p>
+
+<p>The visualizer runs as a user-space program that retrieves process information
+from the kernel via a new system call (<code>getprocs</code>) and renders a formatted
+process tree with state annotations.</p>
+
+<h3 id="team-roles">Team Roles<a class="header-anchor" href="#team-roles">#</a></h3>
+
+<table>
+<thead>
+<tr><th>Member</th><th>Role</th><th>Primary Files</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>Kernel Process Data Exposure</td><td><code>kernel/pinfo.h</code>, <code>kernel/sysproc.c</code></td></tr>
+<tr><td>2</td><td>Kernel System Call Developer</td><td><code>kernel/syscall.h</code>, <code>kernel/syscall.c</code></td></tr>
+<tr><td>3</td><td>User-Space Visualizer Developer</td><td><code>user/ptv.c</code>, <code>user/usys.pl</code>, <code>user/user.h</code></td></tr>
+<tr><td>4</td><td>Testing &amp; Validation Engineer</td><td><code>user/forktree.c</code>, <code>user/orphantree.c</code>, <code>test-xv6.py</code></td></tr>
+<tr><td>5</td><td>Advanced Visualization &amp; Integration</td><td><code>user/ptv.c</code> (enhancements), <code>user/zombie.c</code></td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2 id="2-architecture-data-flow">2. Architecture & Data Flow<a class="header-anchor" href="#2-architecture-data-flow">#</a></h2>
+
+<pre><code>Kernel proc[] ──► sys_getprocs() ──► copyout() ──► getprocs() ──► ptv</code></pre>
+
+<pre><code>struct proc (kernel)          struct pinfo (shared)         user program
+┌────────────────────┐       ┌────────────────────┐       ┌──────────────────┐
+│ pid                │       │ int pid            │       │ getprocs(buf, N) │
+│ state (enum)       │ ───► │ int ppid           │ ───► │ returns count    │
+│ parent (struct*)   │       │ int state          │       │ or -1            │
+│ name[16]           │       │ char name[16]      │       └──────────────────┘
+└────────────────────┘       └────────────────────┘                │
+      │                        ▲                                   ▼
+      │  acquire(wait_lock)    │  copyout()              ┌──────────────────┐
+      │  for each proc:        │  per entry              │ DFS from PID 1   │
+      │  read pid/state/name   │                         │ formatted output │
+      │  parent-&gt;pid → ppid    │                         │ with state marks │
+      └────────────────────────┘                         └──────────────────┘</code></pre>
+
+<h3 id="boundary-crossing">Boundary crossing<a class="header-anchor" href="#boundary-crossing">#</a></h3>
+
+<table>
+<thead>
+<tr><th>Layer</th><th>Address space</th><th>Mechanism</th></tr>
+</thead>
+<tbody>
+<tr><td><code>sys_getprocs()</code></td><td>Kernel</td><td>Reads <code>proc[NPROC]</code> with locks</td></tr>
+<tr><td><code>copyout()</code></td><td>Kernel→User</td><td>Copies <code>struct pinfo</code> to user buffer</td></tr>
+<tr><td><code>getprocs()</code> stub</td><td>User</td><td><code>ecall</code> trampoline (usys.S)</td></tr>
+<tr><td><code>ptv</code> main logic</td><td>User</td><td>DFS tree construction + printf</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2 id="3-kernel-components">3. Kernel Components<a class="header-anchor" href="#3-kernel-components">#</a></h2>
+
+<h3 id="31-kernelpinfoh-shared-data-structure">3.1 `kernel/pinfo.h` — Shared Data Structure<a class="header-anchor" href="#31-kernelpinfoh-shared-data-structure">#</a></h3>
+
+<div class="diff-header">📄 kernel/pinfo.h</div><pre><code class="language-diff">diff --git a/kernel/pinfo.h b/kernel/pinfo.h
+new file mode 100644
+index 0000000..1ad446e
+--- /dev/null
++++ b/kernel/pinfo.h
+@@ -0,0 +1,17 @@
++#ifndef _PINFO_H
++#define _PINFO_H
++#define PINFO_UNUSED     0
++#define PINFO_USED       1
++#define PINFO_SLEEPING   2
++#define PINFO_RUNNABLE   3
++#define PINFO_RUNNING    4
++#define PINFO_ZOMBIE     5
++
++struct pinfo {
++    int pid;     // Process ID
++    int ppid;    // Parent PID, -1 if no parent
++    int state;   // Process state (PINFO_UNUSED=0 .. PINFO_ZOMBIE=5)
++    char name[16]; // Process name, null-terminated
++};
++
++#endif
+</code></pre>
+
+<p><strong>Design notes:</strong></p>
+<ul>
+<li><code>ppid = -1</code> when a process has no parent (init/PID 1, or orphans whose parent</li>
+<br>  pointer was cleared).<li>State constants are prefixed <code>PINFO_</code> to avoid conflicting with the kernel's</li>
+<br>  <code>enum procstate</code> (defined in <code>kernel/proc.h:82</code> as `UNUSED, USED, SLEEPING,<br>  RUNNABLE, RUNNING, ZOMBIE<code>). Kernel code that includes </code>proc.h` uses the enum;<br>  user code that includes <code>pinfo.h</code> uses the macros.<li><code>name[16]</code> matches <code>struct proc.name[16]</code> in <code>kernel/proc.h:106</code>.</li>
+</ul>
+
+<h3 id="32-kernelsyscallh-system-call-number">3.2 `kernel/syscall.h` — System Call Number<a class="header-anchor" href="#32-kernelsyscallh-system-call-number">#</a></h3>
+
+<div class="diff-header">📄 kernel/syscall.h</div><pre><code class="language-diff">diff --git a/kernel/syscall.h b/kernel/syscall.h
+index 3dd926d..a3a98a4 100644
+--- a/kernel/syscall.h
++++ b/kernel/syscall.h
+@@ -20,3 +20,4 @@
+ #define SYS_link   19
+ #define SYS_mkdir  20
+ #define SYS_close  21
++#define SYS_getprocs 22
+</code></pre>
+
+<h3 id="33-kernelsyscallc-dispatch-wiring">3.3 `kernel/syscall.c` — Dispatch Wiring<a class="header-anchor" href="#33-kernelsyscallc-dispatch-wiring">#</a></h3>
+
+<p><strong>Extern declaration</strong> (line 104):</p>
+<div class="diff-header">📄 kernel/syscall.c</div><pre><code class="language-diff">diff --git a/kernel/syscall.c b/kernel/syscall.c
+index 076d965..5b19056 100644
+--- a/kernel/syscall.c
++++ b/kernel/syscall.c
+@@ -101,6 +101,7 @@ extern uint64 sys_unlink(void);
+ extern uint64 sys_link(void);
+ extern uint64 sys_mkdir(void);
+ extern uint64 sys_close(void);
++extern uint64 sys_getprocs(void);
+ 
+ // An array mapping syscall numbers from syscall.h
+ // to the function that handles the system call.</code></pre>
+
+<p><strong>Dispatch table entry</strong> (line 130):</p>
+<pre><code class="language-c">[SYS_getprocs]  sys_getprocs,</code></pre>
+
+<p><strong>Dispatch mechanics</strong> (<code>syscall()</code> function, lines 133-149):</p>
+<ol>
+<li>Read syscall number from <code>p-&gt;trapframe-&gt;a7</code>.</li>
+<li>Validate <code>num &gt; 0 &amp;&amp; num &lt; NELEM(syscalls) &amp;&amp; syscalls[num]</code>.</li>
+<li>Call <code>syscalls[num]()</code> and store return value in <code>p-&gt;trapframe-&gt;a0</code>.</li>
+<li>On invalid number, print error and set <code>a0 = -1</code>.</li>
+</ol>
+
+<p>Since <code>NELEM(syscalls)</code> uses the static array size, and the array uses
+designated initializers (<code>[SYS_getprocs]</code>), the array is automatically large
+enough to hold index 22.</p>
+
+<h3 id="34-kernelsysprocc-syscall-handler-implementation">3.4 `kernel/sysproc.c` — Syscall Handler Implementation<a class="header-anchor" href="#34-kernelsysprocc-syscall-handler-implementation">#</a></h3>
+
+<p><strong>Includes</strong> (lines 1-12):</p>
+<div class="diff-header">📄 kernel/sysproc.c</div><pre><code class="language-diff">diff --git a/kernel/sysproc.c b/kernel/sysproc.c
+index 419e727..f4cf726 100644
+--- a/kernel/sysproc.c
++++ b/kernel/sysproc.c
+@@ -6,6 +6,10 @@
+ #include "spinlock.h"
+ #include "proc.h"
+ #include "vm.h"
++#include "pinfo.h"
++
++extern struct proc proc[NPROC];
++extern struct spinlock wait_lock;
+ 
+ uint64
+ sys_exit(void)
+@@ -107,3 +111,41 @@ sys_uptime(void)
+   release(&amp;tickslock);
+   return xticks;
+ }
++
++uint64
++sys_getprocs(void)
++{
++  uint64 buf;
++  int max_count;
++  struct proc *p;
++  struct pinfo pi;
++  int count = 0;
++
++  argaddr(0, &amp;buf);
++  argint(1, &amp;max_count);
++
++  if (max_count &lt;= 0)
++    return -1;
++
++  acquire(&amp;wait_lock);
++  for (p = proc; p &lt; &amp;proc[NPROC] &amp;&amp; count &lt; max_count; p++) {
++    acquire(&amp;p-&gt;lock);
++    if (p-&gt;state == UNUSED) {
++      release(&amp;p-&gt;lock);
++      continue;
++    }
++    pi.pid = p-&gt;pid;
++    pi.state = p-&gt;state;
++    safestrcpy(pi.name, p-&gt;name, sizeof(pi.name));
++    pi.ppid = (p-&gt;parent != 0) ? p-&gt;parent-&gt;pid : -1;
++    release(&amp;p-&gt;lock);
++
++    if (copyout(myproc()-&gt;pagetable, buf + count * sizeof(pi), (char *)&amp;pi, sizeof(pi)) &lt; 0) {
++      release(&amp;wait_lock);
++      return -1;
++    }
++    count++;
++  }
++  release(&amp;wait_lock);
++  return count;
++}
+</code></pre>
+
+<h4 id="sysgetprocs-lines-115-151">`sys_getprocs()` (lines 115-151)<a class="header-anchor" href="#sysgetprocs-lines-115-151">#</a></h4>
+
+<pre><code class="language-c">uint64
+sys_getprocs(void)
+{
+  uint64 buf;           // user-space buffer address (arg0)
+  int max_count;        // maximum entries to copy (arg1)
+  struct proc *p;
+  struct pinfo pi;      // temporary pinfo for each process
+  int count = 0;
+
+  // Step 1: Extract arguments
+  argaddr(0, &amp;buf);
+  argint(1, &amp;max_count);
+  if (max_count &lt;= 0)
+    return -1;
+
+  // Step 2: Acquire wait_lock (protects p-&gt;parent pointers)
+  acquire(&amp;wait_lock);
+
+  // Step 3: Iterate through process table
+  for (p = proc; p &lt; &amp;proc[NPROC] &amp;&amp; count &lt; max_count; p++) {
+    acquire(&amp;p-&gt;lock);
+
+    // Skip unused slots
+    if (p-&gt;state == UNUSED) {
+      release(&amp;p-&gt;lock);
+      continue;
+    }
+
+    // Read process metadata
+    pi.pid   = p-&gt;pid;
+    pi.state = p-&gt;state;
+    safestrcpy(pi.name, p-&gt;name, sizeof(pi.name));
+
+    // Read parent PID: -1 if no parent (init or orphan)
+    pi.ppid  = (p-&gt;parent != 0) ? p-&gt;parent-&gt;pid : -1;
+
+    release(&amp;p-&gt;lock);
+
+    // Step 4: Copy to user space
+    if (copyout(myproc()-&gt;pagetable,
+                buf + count * sizeof(pi),
+                (char *)&amp;pi, sizeof(pi)) &lt; 0) {
+      release(&amp;wait_lock);
+      return -1;
+    }
+    count++;
+  }
+
+  release(&amp;wait_lock);
+  return count;
+}</code></pre>
+
+<h4 id="locking-protocol">Locking Protocol<a class="header-anchor" href="#locking-protocol">#</a></h4>
+
+<table>
+<thead>
+<tr><th>Lock</th><th>Acquired</th><th>Protects</th><th>Held during</th></tr>
+</thead>
+<tbody>
+<tr><td><code>wait_lock</code></td><td>Once (line 130)</td><td><code>p-&gt;parent</code> pointer</td><td>Entire iteration</td></tr>
+<tr><td><code>p-&gt;lock</code></td><td>Per-entry (line 132)</td><td><code>p-&gt;state</code>, <code>p-&gt;pid</code>, <code>p-&gt;name</code></td><td>Reading single entry</td></tr>
+</tbody>
+</table>
+
+<p>Both <code>kexit()</code> and <code>reparent()</code> in <code>kernel/proc.c</code> also acquire <code>wait_lock</code>,
+ensuring no <code>parent</code> pointer is modified during traversal. The per-process
+<code>p-&gt;lock</code> ensures consistent reads of state/pid/name. Locks are released in
+reverse order (per-process first, then wait_lock) to avoid deadlock.</p>
+
+<h4 id="edge-cases-handled">Edge Cases Handled<a class="header-anchor" href="#edge-cases-handled">#</a></h4>
+
+<table>
+<thead>
+<tr><th>Case</th><th>Behavior</th><th>Code Line</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>UNUSED slots</strong></td><td>Skipped silently</td><td>133-135</td></tr>
+<tr><td><strong>Zombie processes</strong></td><td>Included with <code>state = PINFO_ZOMBIE</code></td><td>137-138</td></tr>
+<tr><td><strong>Orphaned processes</strong></td><td><code>ppid = -1</code> when <code>p-&gt;parent == NULL</code></td><td>140</td></tr>
+<tr><td><strong>Init (PID 1)</strong></td><td><code>ppid = -1</code> (no parent)</td><td>140</td></tr>
+<tr><td><strong>Buffer full</strong></td><td>Stops at <code>max_count</code>, returns partial count</td><td>131</td></tr>
+<tr><td><strong><code>copyout()</code> failure</strong></td><td>Releases all locks, returns <code>-1</code></td><td>143-145</td></tr>
+<tr><td><strong><code>max_count &lt;= 0</code></strong></td><td>Immediate <code>-1</code> return</td><td>127-128</td></tr>
+<tr><td><strong>Empty table</strong></td><td>Returns <code>count = 0</code> (no error)</td><td>149-150</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2 id="4-user-space-components">4. User-Space Components<a class="header-anchor" href="#4-user-space-components">#</a></h2>
+
+<h3 id="41-userusyspl-syscall-trampoline-generator">4.1 `user/usys.pl` — Syscall Trampoline Generator<a class="header-anchor" href="#41-userusyspl-syscall-trampoline-generator">#</a></h3>
+
+<p>Added at line 45:</p>
+<div class="diff-header">📄 user/usys.pl</div><pre><code class="language-diff">diff --git a/user/usys.pl b/user/usys.pl
+index c5d4c3a..f407ae2 100755
+--- a/user/usys.pl
++++ b/user/usys.pl
+@@ -42,3 +42,4 @@ entry("getpid");
+ entry("sbrk");
+ entry("pause");
+ entry("uptime");
++entry("getprocs");
+</code></pre>
+
+<p>Generates in <code>user/usys.S</code>:</p>
+<pre><code class="language-diff">+.global getprocs
++getprocs:
++ li a7, SYS_getprocs    # load syscall number 22
++ ecall                    # trap to kernel
++ ret</code></pre>
+
+<p>The Perl script generates an <code>ecall</code> trampoline for each <code>entry()</code> call. The
+syscall number is loaded into register <code>a7</code>, which <code>syscall()</code> in
+<code>kernel/syscall.c:137</code> reads from <code>p-&gt;trapframe-&gt;a7</code>.</p>
+
+<h3 id="42-useruserh-user-space-declarations">4.2 `user/user.h` — User-Space Declarations<a class="header-anchor" href="#42-useruserh-user-space-declarations">#</a></h3>
+
+<div class="diff-header">📄 user/user.h</div><pre><code class="language-diff">diff --git a/user/user.h b/user/user.h
+index ac84de9..c3e9cf5 100644
+--- a/user/user.h
++++ b/user/user.h
+@@ -1,5 +1,6 @@
+ #define SBRK_ERROR ((char *)-1)
+ 
++struct pinfo;
+ struct stat;
+ 
+ // system calls
+@@ -24,6 +25,7 @@ int getpid(void);
+ char* sys_sbrk(int,int);
+ int pause(int);
+ int uptime(void);
++int getprocs(struct pinfo*, int);
+ 
+ // ulib.c
+ int stat(const char*, struct stat*);
+</code></pre>
+
+<p>A forward declaration of <code>struct pinfo</code> is used instead of `#include
+"kernel/pinfo.h"<code> to keep </code>user.h` minimal. The full struct definition is
+available to programs that include <code>kernel/pinfo.h</code> directly (as <code>ptv.c</code> does).</p>
+
+<h3 id="43-userptvc-visualizer-program-84-lines">4.3 `user/ptv.c` — Visualizer Program (84 lines)<a class="header-anchor" href="#43-userptvc-visualizer-program-84-lines">#</a></h3>
+
+<div class="diff-header">📄 user/ptv.c</div><pre><code class="language-diff">diff --git a/user/ptv.c b/user/ptv.c
+new file mode 100644
+index 0000000..0992e33
+--- /dev/null
++++ b/user/ptv.c
+@@ -0,0 +1,83 @@
++#include "kernel/types.h"
++#include "kernel/stat.h"
++#include "user/user.h"
++#include "kernel/param.h"
++#include "kernel/pinfo.h"
++
++#define MAX_DEPTH 32
++
++void print_process(struct pinfo *p, int depth) {
++    for (int i = 0; i &lt; depth; i++) {</code></pre>
+
+<h4 id="function-printprocess-lines-9-27">Function: `print_process()` (lines 9-27)<a class="header-anchor" href="#function-printprocess-lines-9-27">#</a></h4>
+
+<pre><code class="language-c">void print_process(struct pinfo *p, int depth) {
+    // Indentation: for each depth level
+    //   last level: "  └── " (6 chars)
+    //   other levels: "      " (6 chars)
+    for (int i = 0; i &lt; depth; i++) {
+        if (i == depth - 1)
+            printf("  └── ");
+        else
+            printf("      ");
+    }
+
+    // State-aware labeling
+    if (p-&gt;state == PINFO_ZOMBIE)
+        printf("%s(%d,ZOMBIE)\n", p-&gt;name, p-&gt;pid);
+    else if (p-&gt;state == PINFO_RUNNING)
+        printf("%s(%d,RUN)\n", p-&gt;name, p-&gt;pid);
+    else if (p-&gt;state == PINFO_SLEEPING)
+        printf("%s(%d,SLEEP)\n", p-&gt;name, p-&gt;pid);
+    else if (p-&gt;state == PINFO_RUNNABLE)
+        printf("%s(%d,RDY)\n", p-&gt;name, p-&gt;pid);
+    else
+        printf("%s(%d)\n", p-&gt;name, p-&gt;pid);
+}</code></pre>
+
+<p>State label mapping:</p>
+
+<table>
+<thead>
+<tr><th><code>p-&gt;state</code></th><th>Label</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td>PINFO_ZOMBIE (5)</td><td><code>ZOMBIE</code></td><td><code>zombie(3,ZOMBIE)</code></td></tr>
+<tr><td>PINFO_RUNNING (4)</td><td><code>RUN</code></td><td><code>ptv(4,RUN)</code></td></tr>
+<tr><td>PINFO_SLEEPING (2)</td><td><code>SLEEP</code></td><td><code>sh(2,SLEEP)</code></td></tr>
+<tr><td>PINFO_RUNNABLE (3)</td><td><code>RDY</code></td><td><code>init(1,RDY)</code></td></tr>
+<tr><td>PINFO_USED (1)</td><td><em>(none)</em></td><td><code>init(1)</code></td></tr>
+</tbody>
+</table>
+
+<h4 id="function-dfs-lines-29-37">Function: `dfs()` (lines 29-37)<a class="header-anchor" href="#function-dfs-lines-29-37">#</a></h4>
+
+<pre><code class="language-c">void dfs(int parent_pid, int depth, struct pinfo *procs, int n, int *count) {
+    for (int i = 0; i &lt; n; i++) {
+        if (procs[i].ppid == parent_pid) {
+            (*count)++;
+            print_process(&amp;procs[i], depth);
+            dfs(procs[i].pid, depth + 1, procs, n, count);
+        }
+    }
+}</code></pre>
+
+<p>Linear scan O(n^2) algorithm. Since <code>n ≤ NPROC = 64</code>, this is effectively
+constant-time. No adjacency list needed.</p>
+
+<h4 id="function-main-lines-39-83">Function: `main()` (lines 39-83)<a class="header-anchor" href="#function-main-lines-39-83">#</a></h4>
+
+<pre><code class="language-c">int main(void) {
+    struct pinfo procs[NPROC];     // stack-allocated buffer (64 * 28 = 1792 bytes)
+    int n, total_count = 0;
+
+    // Step 1: Fetch process data from kernel
+    n = getprocs(procs, NPROC);
+    if (n &lt; 0) {
+        printf("ptv: getprocs failed\n");
+        exit(1);
+    }
+    if (n == 0) {
+        printf("No processes found\n");
+        exit(0);
+    }
+
+    // Step 2: Find init (PID 1) as tree root
+    struct pinfo *init = 0;
+    for (int i = 0; i &lt; n; i++) {
+        if (procs[i].pid == 1) {
+            init = &amp;procs[i];
+            break;
+        }
+    }
+    if (!init) {
+        printf("ptv: init process not found\n");
+        exit(1);
+    }
+
+    // Step 3: Print root (init) with state annotation
+    printf("%s(%d", init-&gt;name, init-&gt;pid);
+    if (init-&gt;state == PINFO_ZOMBIE)      printf(",ZOMBIE");
+    else if (init-&gt;state == PINFO_RUNNING) printf(",RUN");
+    else if (init-&gt;state == PINFO_SLEEPING)printf(",SLEEP");
+    else if (init-&gt;state == PINFO_RUNNABLE)printf(",RDY");
+    printf(")\n");
+    total_count = 1;
+
+    // Step 4: DFS from init's children
+    dfs(1, 1, procs, n, &amp;total_count);
+
+    // Step 5: Summary line
+    printf("Total: %d processes\n", total_count);
+    exit(0);
+}</code></pre>
+
+<h4 id="algorithm-summary">Algorithm summary<a class="header-anchor" href="#algorithm-summary">#</a></h4>
+
+<ol>
+<li>Call <code>getprocs(procs, NPROC)</code> to fetch all process data.</li>
+<li>Locate PID 1 (init) as the tree root.</li>
+<li>Print root with state annotation.</li>
+<li>Recursively DFS children where <code>procs[i].ppid == parent_pid</code>.</li>
+<li>Print "Total: N processes" summary.</li>
+</ol>
+
+<h4 id="expected-output">Expected output<a class="header-anchor" href="#expected-output">#</a></h4>
+
+<pre><code>init(1,SLEEP)
+  └── sh(2,SLEEP)
+      └── ptv(4,RUN)
+Total: 3 processes</code></pre>
+
+<hr>
+
+<h2 id="5-test-programs">5. Test Programs<a class="header-anchor" href="#5-test-programs">#</a></h2>
+
+<h3 id="51-userforktreec-multi-level-fork-hierarchy-46-lines">5.1 `user/forktree.c` — Multi-Level Fork Hierarchy (46 lines)<a class="header-anchor" href="#51-userforktreec-multi-level-fork-hierarchy-46-lines">#</a></h3>
+
+<div class="diff-header">📄 user/forktree.c</div><pre><code class="language-diff">diff --git a/user/forktree.c b/user/forktree.c
+new file mode 100644
+index 0000000..7f41a97
+--- /dev/null
++++ b/user/forktree.c
+@@ -0,0 +1,45 @@
++// Create a persistent multi-level fork tree for ptv testing.
++// Uses double-fork so the shell is not blocked:
++//   forktree runs → grandparent exits → shell continues
++//   parent stays alive with its fork hierarchy visible to ptv.
++
++#include "kernel/types.h"
++#include "kernel/stat.h"
++#include "user/user.h"
++
++void
++fork_tree(int start_depth, int max_depth)
++{
++  int pid;
++
++  for (int depth = start_depth; depth &lt; max_depth - 1; depth++) {
++    pid = fork();
++    if (pid &lt; 0)
++      exit(1);
++    if (pid == 0)
++      continue;
++    for (;;) pause(10);
++  }
++
++  pid = fork();
++  if (pid &lt; 0)
++    exit(1);
++  if (pid == 0)
++    exit(0);
++  for (;;) pause(10);
++}
++
++int
++main(void)
++{
++  printf("forktree starting\n");
++  int pid = fork();
++  if (pid &lt; 0)
++    exit(1);
++  if (pid == 0) {
++    fork_tree(0, 4);
++    for (;;) pause(10);
++  }
++  printf("forktree done\n");
++  exit(0);
++}
+</code></pre>
+
+<p><strong>Process tree created:</strong></p>
+<pre><code>init(1)
+  └── sh(2)
+      └── forktree(4)        ← stays alive
+          └── forktree(5)    ← also alive
+              └── forktree(6)  ← ZOMBIE (leaf exited)
+              ↑ (pauses)</code></pre>
+
+<p><strong>Design:</strong> Uses double-fork so the grandparent reports "done" and exits,
+unblocking the shell. The middle process and its descendants stay alive until
+the test reads the ptv output.</p>
+
+<h3 id="52-userorphantreec-orphan-reparenting-test-25-lines">5.2 `user/orphantree.c` — Orphan Reparenting Test (25 lines)<a class="header-anchor" href="#52-userorphantreec-orphan-reparenting-test-25-lines">#</a></h3>
+
+<div class="diff-header">📄 user/orphantree.c</div><pre><code class="language-diff">diff --git a/user/orphantree.c b/user/orphantree.c
+new file mode 100644
+index 0000000..f8d5edf
+--- /dev/null
++++ b/user/orphantree.c
+@@ -0,0 +1,24 @@
++#include "kernel/types.h"
++#include "kernel/stat.h"
++#include "user/user.h"
++
++int
++main(void)
++{
++  int pid = fork();
++  if (pid &lt; 0)
++    exit(1);
++
++  if (pid == 0) {
++    int pid2 = fork();
++    if (pid2 &lt; 0)
++      exit(1);
++    if (pid2 == 0) {
++      for (;;) pause(10);
++    }
++    exit(0);
++  }
++
++  wait(0);
++  exit(0);
++}
+</code></pre>
+
+<p><strong>Orphan flow:</strong></p>
+<ol>
+<li>Parent forks child.</li>
+<li>Child forks grandchild, then exits.</li>
+<li>Kernel's <code>reparent()</code> in <code>proc.c:311</code> reparents grandchild to init (PID 1).</li>
+<li>Grandchild continues in <code>for(;;) pause(10)</code>.</li>
+<li>ptv shows grandchild under init.</li>
+</ol>
+
+<h3 id="53-userzombiec-zombie-process-test-28-lines">5.3 `user/zombie.c` — Zombie Process Test (28 lines)<a class="header-anchor" href="#53-userzombiec-zombie-process-test-28-lines">#</a></h3>
+
+<div class="diff-header">📄 user/zombie.c</div><pre><code class="language-diff">diff --git a/user/zombie.c b/user/zombie.c
+index d59dc03..d6c868c 100644
+--- a/user/zombie.c
++++ b/user/zombie.c
+@@ -1,5 +1,7 @@
+-// Create a zombie process that
+-// must be reparented at exit.
++// Create a zombie process.
++// Uses double-fork so the shell is not blocked:
++//   zombie runs → grandparent exits → shell continues
++//   parent stays alive → keeps grandchild as zombie for ptv to see.
+ 
+ #include "kernel/types.h"
+ #include "kernel/stat.h"
+@@ -8,7 +10,18 @@
+ int
+ main(void)
+ {
+-  if(fork() &gt; 0)
+-    pause(5);  // Let child exit before parent.
++  int pid = fork();
++  if (pid &lt; 0)
++    exit(1);
++
++  if (pid == 0) {
++    int pid2 = fork();
++    if (pid2 &lt; 0)
++      exit(1);
++    if (pid2 == 0)
++      exit(0);          // Grandchild exits → zombie
++    for (;;) pause(10); // Stay alive so grandchild stays zombie
++  }
++
+   exit(0);
+ }
+</code></pre>
+
+<p><strong>Zombie flow:</strong></p>
+<ol>
+<li>Original <code>zombie</code> process forks child, then exits (shell unblocked).</li>
+<li>Child forks grandchild.</li>
+<li>Grandchild exits immediately → becomes ZOMBIE.</li>
+<li>Child stays alive in <code>pause(10)</code> loop → grandchild's parent remains alive,</li>
+<br>   so grandchild stays in ZOMBIE state (not reaped by init).<li>ptv shows <code>zombie(...,ZOMBIE)</code>.</li>
+</ol>
+
+<p><strong>Why double-fork?</strong> Without double-fork, the shell would <code>wait()</code> for zombie's
+direct child to exit, and the shell would be blocked. The double-fork ensures
+the process that <code>exit(0)</code> immediately is the grandparent of the actual zombie.</p>
+
+<hr>
+
+<h2 id="6-test-automation-test-xv6py">6. Test Automation — `test-xv6.py`<a class="header-anchor" href="#6-test-automation-test-xv6py">#</a></h2>
+
+<h3 id="61-testptvbasic-lines-202-222">6.1 `test_ptv_basic()` (lines 202-222)<a class="header-anchor" href="#61-testptvbasic-lines-202-222">#</a></h3>
+
+<div class="diff-header">📄 test-xv6.py</div><pre><code class="language-diff">diff --git a/test-xv6.py b/test-xv6.py
+index 563ca77..4f600b8 100755
+--- a/test-xv6.py
++++ b/test-xv6.py
+@@ -199,6 +199,85 @@ def test_usertests(test=""):
+     q.monitor('^ALL TESTS PASSED', progress='test', timeout=timeout)
+     q.stop()
+ 
++def test_ptv_basic():
++    """Boot xv6, run ptv, validate process tree output."""
++    print("Test basic process tree")
++    q = QEMU(True)
++    q.cmd("ptv\n")
++    q.monitor(r'^init\(1', timeout=10)
++
++    lines = q.lines()
++    if not any(re.match(r'^init\(1', l) for l in lines):
++        print("FAIL: init(1) not found in ptv output")
++        q.stop()
++        sys.exit(1)
++    print("OK: init(1) found")
++
++    if not any(re.search(r'sh\(', l) for l in lines):
++        print("FAIL: sh not found in ptv output")
++        q.stop()
++        sys.exit(1)
++    print("OK: sh found")
++
++    q.stop()
++
++def test_ptv_forktree():
++    """Run forktree then ptv, verify multi-level hierarchy."""
++    print("Test forktree hierarchy in ptv")
++    q = QEMU(True)
++    q.cmd("forktree\n")
++    time.sleep(3)
++    q.cmd("ptv\n")
++    time.sleep(1)
++    q.read()
++
++    lines = q.lines()
++    if not any(re.search(r'forktree\(', l) for l in lines):
++        print("FAIL: forktree not found in ptv output")
++        q.stop()
++        sys.exit(1)
++    print("OK: forktree found in ptv output")
++
++    q.stop()
++
++def test_ptv_orphans():
++    """Run orphantree then ptv, verify orphans shown under init."""
++    print("Test orphan reparenting in ptv")
++    q = QEMU(True)
++    q.cmd("orphantree\n")
++    time.sleep(3)
++    q.cmd("ptv\n")
++    time.sleep(1)
++    q.read()
++
++    lines = q.lines()
++    if not any(re.search(r'orphantree', l) for l in lines):
++        print("FAIL: orphantree not found in ptv output")
++        q.stop()
++        sys.exit(1)
++    print("OK: orphaned process found in ptv output")
++
++    q.stop()
++
++def test_ptv_zombies():
++    """Verify zombie processes are marked in ptv output."""
++    print("Test zombie marking in ptv")
++    q = QEMU(True)
++    q.cmd("zombie\n")
++    time.sleep(2)
++    q.cmd("ptv\n")
++    time.sleep(1)
++    q.read()
++
++    lines = q.lines()
++    if not any(re.search(r'ZOMBIE', l) for l in lines):
++        print("FAIL: no ZOMBIE marker found in ptv output")
++        q.stop()
++        sys.exit(1)
++    print("OK: zombie process marked in ptv output")
++
++    q.stop()
++
+ def main():
+     print(args)</code></pre>
+
+<p><strong>Validates:</strong> init is tree root, sh is a visible child.
+<strong>Regex:</strong> <code>^init\(1</code> (no closing paren) to match both <code>init(1)</code> and
+<code>init(1,SLEEP)</code>.</p>
+
+<h3 id="62-testptvforktree-lines-224-241">6.2 `test_ptv_forktree()` (lines 224-241)<a class="header-anchor" href="#62-testptvforktree-lines-224-241">#</a></h3>
+
+<pre><code class="language-python">def test_ptv_forktree():
+    """Run forktree then ptv, verify multi-level hierarchy."""
+    q = QEMU(True)
+    q.cmd("forktree\n")
+    time.sleep(3)          # wait for hierarchy to form
+    q.cmd("ptv\n")
+    time.sleep(1)
+    q.read()
+    lines = q.lines()
+    assert any(re.search(r'forktree\(', l) for l in lines)
+    q.stop()</code></pre>
+
+<p><strong>Validates:</strong> Multi-level fork hierarchy visible in ptv output.</p>
+
+<h3 id="63-testptvorphans-lines-243-260">6.3 `test_ptv_orphans()` (lines 243-260)<a class="header-anchor" href="#63-testptvorphans-lines-243-260">#</a></h3>
+
+<pre><code class="language-python">def test_ptv_orphans():
+    """Run orphantree then ptv, verify orphans shown under init."""
+    q = QEMU(True)
+    q.cmd("orphantree\n")
+    time.sleep(3)
+    q.cmd("ptv\n")
+    time.sleep(1)
+    q.read()
+    lines = q.lines()
+    assert any(re.search(r'orphantree', l) for l in lines)
+    q.stop()</code></pre>
+
+<p><strong>Validates:</strong> Orphaned process (reparented to init) appears in tree.</p>
+
+<h3 id="64-testptvzombies-lines-262-279">6.4 `test_ptv_zombies()` (lines 262-279)<a class="header-anchor" href="#64-testptvzombies-lines-262-279">#</a></h3>
+
+<pre><code class="language-python">def test_ptv_zombies():
+    """Verify zombie processes are marked in ptv output."""
+    q = QEMU(True)
+    q.cmd("zombie\n")
+    time.sleep(2)
+    q.cmd("ptv\n")
+    time.sleep(1)
+    q.read()
+    lines = q.lines()
+    assert any(re.search(r'ZOMBIE', l) for l in lines)
+    q.stop()</code></pre>
+
+<p><strong>Validates:</strong> Zombie processes marked with <code>,ZOMBIE</code> suffix in ptv output.</p>
+
+<h3 id="test-runner">Test runner<a class="header-anchor" href="#test-runner">#</a></h3>
+
+<pre><code class="language-python">def main():
+    rex = r'%s' % args.testrex
+    funcs = [(obj,name) for name,obj in inspect.getmembers(sys.modules[__name__])
+             if (inspect.isfunction(obj) and name.startswith('test'))]
+    for (f,n) in funcs:
+        if re.search(rex, n):
+            f()</code></pre>
+
+<p>Run individual tests:</p>
+<pre><code>./test-xv6.py ptv_basic
+./test-xv6.py ptv_forktree
+./test-xv6.py ptv_orphans
+./test-xv6.py ptv_zombies</code></pre>
+
+<p>Run all ptv tests:</p>
+<pre><code>./test-xv6.py ptv</code></pre>
+
+<hr>
+
+<h2 id="7-build-system-makefile">7. Build System — Makefile<a class="header-anchor" href="#7-build-system-makefile">#</a></h2>
+
+<h3 id="uprogs-additions-lines-148-150">UPROGS additions (lines 148-150)<a class="header-anchor" href="#uprogs-additions-lines-148-150">#</a></h3>
+
+<div class="diff-header">📄 Makefile</div><pre><code class="language-diff">diff --git a/Makefile b/Makefile
+index b262c0a..0a79ffb 100644
+--- a/Makefile
++++ b/Makefile
+@@ -145,6 +145,9 @@ UPROGS=\
+ 	$U/_logstress\
+ 	$U/_forphan\
+ 	$U/_dorphan\
++	$U/_forktree\
++	$U/_orphantree\
++	$U/_ptv\
+ 
+ fs.img: mkfs/mkfs README $(UPROGS)
+ 	mkfs/mkfs fs.img README $(UPROGS)</code></pre>
+
+<p>Each <code>$U/_&lt;name&gt;</code> target is built by the implicit rule (line 102):</p>
+<pre><code class="language-makefile">_%: %.o $(ULIB) $U/user.ld
+	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $&lt; $(ULIB)
+	$(OBJDUMP) -S $@ &gt; $*.asm
+	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' &gt; $*.sym</code></pre>
+
+<p>Where <code>$(ULIB) = $U/ulib.o $U/usys.o $U/printf.o $U/umalloc.o</code> (line 100).
+The <code>_ptv</code> binary is linked with <code>usys.o</code> which contains the <code>getprocs</code> ecall
+trampoline.</p>
+
+<h3 id="build-commands">Build commands<a class="header-anchor" href="#build-commands">#</a></h3>
+
+<table>
+<thead>
+<tr><th>Command</th><th>What it does</th></tr>
+</thead>
+<tbody>
+<tr><td><code>make</code></td><td>Builds kernel + filesystem</td></tr>
+<tr><td><code>make kernel/kernel</code></td><td>Builds just the kernel</td></tr>
+<tr><td><code>make fs.img</code></td><td>Builds the filesystem image</td></tr>
+<tr><td><code>make qemu</code></td><td>Boots xv6 in QEMU</td></tr>
+<tr><td><code>make clean</code></td><td>Removes all build artifacts</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2 id="8-full-file-manifest">8. Full File Manifest<a class="header-anchor" href="#8-full-file-manifest">#</a></h2>
+
+<table>
+<thead>
+<tr><th>File</th><th>Lines</th><th>Purpose</th><th>Primary Author</th></tr>
+</thead>
+<tbody>
+<tr><td><code>kernel/pinfo.h</code></td><td>18</td><td><code>struct pinfo</code> + <code>PINFO_*</code> state constants</td><td>Member 1</td></tr>
+<tr><td><code>kernel/syscall.h</code></td><td>24</td><td><code>#define SYS_getprocs 22</code></td><td>Member 2</td></tr>
+<tr><td><code>kernel/syscall.c</code></td><td>150</td><td>Extern + dispatch table entry for getprocs</td><td>Member 2</td></tr>
+<tr><td><code>kernel/sysproc.c</code></td><td>152</td><td><code>sys_getprocs()</code> implementation</td><td>Members 1, 2</td></tr>
+<tr><td><code>user/usys.pl</code></td><td>46</td><td><code>entry("getprocs")</code> trampoline generator</td><td>Member 3</td></tr>
+<tr><td><code>user/user.h</code></td><td>52</td><td><code>int getprocs(struct pinfo*, int)</code> declaration</td><td>Member 3</td></tr>
+<tr><td><code>user/ptv.c</code></td><td>84</td><td>Visualizer: DFS tree builder, state-aware output</td><td>Members 3, 5</td></tr>
+<tr><td><code>user/forktree.c</code></td><td>46</td><td>Test: multi-level fork hierarchy</td><td>Member 4</td></tr>
+<tr><td><code>user/orphantree.c</code></td><td>25</td><td>Test: orphan reparenting</td><td>Member 4</td></tr>
+<tr><td><code>user/zombie.c</code></td><td>28</td><td>Test: zombie process marking</td><td>Member 5</td></tr>
+<tr><td><code>test-xv6.py</code></td><td>296</td><td>4 test functions (<code>test_ptv_*</code>)</td><td>Member 4</td></tr>
+<tr><td><code>Makefile</code></td><td>196</td><td><code>UPROGS</code> entries for <code>_forktree</code>, <code>_orphantree</code>, <code>_ptv</code></td><td>Members 3, 4</td></tr>
+<tr><td><code>docs/member1-implementation.md</code></td><td>—</td><td>Implementation doc: Member 1</td><td>Member 1</td></tr>
+<tr><td><code>docs/member2-implementation.md</code></td><td>—</td><td>Implementation doc: Member 2</td><td>Member 1</td></tr>
+<tr><td><code>docs/member3-implementation.md</code></td><td>—</td><td>Implementation doc: Member 3</td><td>Member 1</td></tr>
+<tr><td><code>docs/member4-implementation.md</code></td><td>—</td><td>Implementation doc: Member 4</td><td>Member 1</td></tr>
+<tr><td><code>docs/member5-implementation.md</code></td><td>—</td><td>Implementation doc: Member 5</td><td>Member 1</td></tr>
+<tr><td><code>docs/specs.md</code></td><td>—</td><td>This file — full project spec</td><td>Member 1</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2 id="9-syscall-contract-reference">9. Syscall Contract Reference<a class="header-anchor" href="#9-syscall-contract-reference">#</a></h2>
+
+<h3 id="getprocs-kernel-to-user-process-data-transfer">`getprocs()` — kernel-to-user process data transfer<a class="header-anchor" href="#getprocs-kernel-to-user-process-data-transfer">#</a></h3>
+
+<pre><code>Arguments:  a0 = user-space buffer address (uint64)
+            a1 = max count (int)
+Returns:    a0 = number of processes copied (&gt; 0), or -1 on error</code></pre>
+
+<h4 id="caller-user-space">Caller (user-space)<a class="header-anchor" href="#caller-user-space">#</a></h4>
+
+<pre><code class="language-diff">+int n = getprocs(procs, NPROC);
++// n &gt; 0:  procs[0..n-1] filled with process data
++// n == 0: no active processes (empty table)
++// n == -1: system call error</code></pre>
+
+<h4 id="callee-kernel-space">Callee (kernel-space)<a class="header-anchor" href="#callee-kernel-space">#</a></h4>
+
+<pre><code class="language-diff">+acquire(wait_lock)
++for each proc in proc[NPROC]:
++    acquire(p-&gt;lock)
++    if p-&gt;state == UNUSED: release, continue
++    pinfo.pid   = p-&gt;pid
++    pinfo.state = p-&gt;state
++    pinfo.name  = p-&gt;name
++    pinfo.ppid  = (p-&gt;parent) ? p-&gt;parent-&gt;pid : -1
++    release(p-&gt;lock)
++    copyout(pinfo) → user buffer
++    if copyout fails: release(wait_lock), return -1
++release(wait_lock)
++return count</code></pre>
+
+<h4 id="guarantees">Guarantees<a class="header-anchor" href="#guarantees">#</a></h4>
+
+<table>
+<thead>
+<tr><th>Condition</th><th>Behavior</th></tr>
+</thead>
+<tbody>
+<tr><td><code>max_count ≤ 0</code></td><td>Returns <code>-1</code>, no data copied</td></tr>
+<tr><td><code>buf</code> is invalid/unmapped</td><td><code>copyout()</code> fails, returns <code>-1</code></td></tr>
+<tr><td>Partial buffer (n &lt; total processes)</td><td>Returns <code>n = max_count</code> (partial result)</td></tr>
+<tr><td>Empty process table</td><td>Returns <code>0</code></td></tr>
+<tr><td>Zombie process</td><td>Included, <code>state = 5</code></td></tr>
+<tr><td>Orphan/no parent</td><td><code>ppid = -1</code></td></tr>
+<tr><td><code>name</code> longer than 15 chars</td><td><code>safestrcpy</code> truncates to 15 + NUL</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2 id="10-implementation-phases">10. Implementation Phases<a class="header-anchor" href="#10-implementation-phases">#</a></h2>
+
+<table>
+<thead>
+<tr><th>Phase</th><th>Description</th><th>Files</th><th>Members</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>Define shared <code>struct pinfo</code></td><td><code>kernel/pinfo.h</code></td><td>1</td></tr>
+<tr><td>2</td><td>Add syscall number and dispatch</td><td><code>kernel/syscall.h</code>, <code>kernel/syscall.c</code></td><td>2</td></tr>
+<tr><td>3</td><td>Implement <code>sys_getprocs()</code></td><td><code>kernel/sysproc.c</code></td><td>1, 2</td></tr>
+<tr><td>4</td><td>User-space syscall stub</td><td><code>user/usys.pl</code>, <code>user/user.h</code></td><td>3</td></tr>
+<tr><td>5</td><td>Write <code>ptv</code> visualizer</td><td><code>user/ptv.c</code>, <code>Makefile</code></td><td>3, 5</td></tr>
+<tr><td>6</td><td>Write test programs + harness</td><td><code>user/forktree.c</code>, <code>user/orphantree.c</code>, <code>test-xv6.py</code></td><td>4</td></tr>
+<tr><td>7</td><td>Integration + zombie test</td><td><code>user/zombie.c</code>, end-to-end testing</td><td>5</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2 id="11-development-environment">11. Development Environment<a class="header-anchor" href="#11-development-environment">#</a></h2>
+
+<h3 id="docker">Docker<a class="header-anchor" href="#docker">#</a></h3>
+
+<pre><code class="language-dockerfile">FROM debian:bookworm
+RUN apt-get update &amp;&amp; apt-get install -y \
+    git build-essential gcc-riscv64-linux-gnu \
+    binutils-riscv64-linux-gnu qemu-system-misc gdb-multiarch
+WORKDIR /workspace
+CMD ["bash"]</code></pre>
+
+<p>Build and run:</p>
+<pre><code class="language-bash">docker build -t xv6-dev .
+docker run -it --rm -v $(pwd):/workspace xv6-dev</code></pre>
+
+<p>Inside the container:</p>
+<pre><code class="language-bash">make
+make qemu
+# In xv6 shell:
+$ ptv</code></pre>
+
+<h3 id="toolchain">Toolchain<a class="header-anchor" href="#toolchain">#</a></h3>
+
+<p>The Makefile auto-detects the RISC-V toolchain prefix by trying:
+<code>riscv64-unknown-elf-</code>, <code>riscv64-elf-</code>, <code>riscv64-none-elf-</code>,
+<code>riscv64-linux-gnu-</code>, <code>riscv64-unknown-linux-gnu-</code>.</p>
+
+<p>Minimum QEMU version: 7.2 (checked by <code>check-qemu-version</code> target).</p>
+
+<hr>
+
+<h2 id="12-state-constants-reference">12. State Constants Reference<a class="header-anchor" href="#12-state-constants-reference">#</a></h2>
+
+<table>
+<thead>
+<tr><th>Constant</th><th>Value</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>PINFO_UNUSED</code> / <code>UNUSED</code></td><td>0</td><td>Not allocated (skipped)</td></tr>
+<tr><td><code>PINFO_USED</code> / <code>USED</code></td><td>1</td><td>Allocated, not yet runnable</td></tr>
+<tr><td><code>PINFO_SLEEPING</code> / <code>SLEEPING</code></td><td>2</td><td>Sleeping on a channel</td></tr>
+<tr><td><code>PINFO_RUNNABLE</code> / <code>RUNNABLE</code></td><td>3</td><td>Ready to run</td></tr>
+<tr><td><code>PINFO_RUNNING</code> / <code>RUNNING</code></td><td>4</td><td>Currently executing</td></tr>
+<tr><td><code>PINFO_ZOMBIE</code> / <code>ZOMBIE</code></td><td>5</td><td>Exited, waiting for parent <code>wait()</code></td></tr>
+</tbody>
+</table>
+
+<p>Kernel code (<code>kernel/proc.c</code>, <code>kernel/sysproc.c</code>) uses the <code>enum procstate</code>
+values from <code>kernel/proc.h:82</code>. User code uses the <code>PINFO_*</code> macros from
+<code>kernel/pinfo.h</code>.</p>
+
+<hr>
+
+<h2 id="13-data-structure-struct-pinfo">13. Data Structure: `struct pinfo`<a class="header-anchor" href="#13-data-structure-struct-pinfo">#</a></h2>
+
+<pre><code>Offset  Size  Field     Description
+------  ----  -----     -----------
+  0      4    pid       Process ID (1..32767)
+  4      4    ppid      Parent PID, -1 if none
+  8      4    state     PINFO_UNUSED(0) .. PINFO_ZOMBIE(5)
+ 12      4    (pad)     implicit padding
+ 16     16    name[16]  Null-terminated process name
+                      ────────
+Total: 32 bytes per entry</code></pre>
+
+<p>A full <code>struct pinfo procs[64]</code> buffer is 2048 bytes (fits on the stack).</p>
+
+<hr>
+
+<h2 id="14-known-issues-potential-improvements">14. Known Issues & Potential Improvements<a class="header-anchor" href="#14-known-issues-potential-improvements">#</a></h2>
+
+<h3 id="fixed">Fixed<a class="header-anchor" href="#fixed">#</a></h3>
+<ul>
+<li>~~State <code>#define</code>s in <code>pinfo.h</code> conflicted with <code>enum procstate</code> in <code>proc.h</code>~~</li>
+<br>  → Fixed by prefixing with <code>PINFO_</code>.<li>~~<code>test_pstree</code> regex <code>^init\(1\)</code> didn't match <code>init(1,SLEEP)</code>~~</li>
+<br>  → Fixed to <code>^init\(1</code>.<li>~~Function names used <code>pstree</code> instead of <code>ptv</code>~~</li>
+<br>  → Renamed to <code>test_ptv_*</code>.</ul>
+
+<h3 id="current">Current<a class="header-anchor" href="#current">#</a></h3>
+<ul>
+<li><code>forktree.c</code>: leaf process exits into ZOMBIE state, but the tree depth math</li>
+<br>  creates exactly the right number of levels for <code>max_depth=4</code>.<li><code>test_ptv_forktree</code>: relies on <code>time.sleep(3)</code> being sufficient for the</li>
+<br>  fork hierarchy to settle. Could be flaky on slow emulation.</ul>
+
+<h3 id="potential">Potential<a class="header-anchor" href="#potential">#</a></h3>
+<ul>
+<li>Add <code>-a</code> (all processes) and <code>-p PID</code> (single process ancestry) flags.</li>
+<li>Add cycle detection in DFS (unlikely in xv6, but safety net).</li>
+<li>Print orphaned root processes separately instead of requiring PID 1.</li>
+</ul>
+
+<hr>
+
+<h2 id="15-file-dependency-graph">15. File Dependency Graph<a class="header-anchor" href="#15-file-dependency-graph">#</a></h2>
+
+<pre><code>kernel/pinfo.h
+    ├── kernel/sysproc.c  (for struct pinfo in copyout)
+    └── user/ptv.c        (for struct pinfo + PINFO_* constants)
+
+kernel/syscall.h
+    ├── kernel/syscall.c  (dispatch table via SYS_getprocs)
+    └── user/usys.S       (generated from usys.pl, includes syscall.h)
+
+kernel/syscall.c
+    └── kernel/sysproc.o  (linked via extern sys_getprocs)
+
+user/user.h
+    └── user/ptv.c        (declares getprocs())
+
+user/usys.pl
+    └── user/usys.S       (generated → usys.o → linked into _ptv)
+
+Makefile
+    └── UPROGS includes _forktree, _orphantree, _ptv</code></pre>
+
+
+</main>
+<script src="js/interactivity.js"></script>
+<script>
+hljs.highlightAll();
+mermaid.initialize({
+  startOnLoad: true,
+  theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default',
+  securityLevel: 'loose',
+});
+const observer = new MutationObserver(() => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.getElementById('hljs-light').disabled = isDark;
+  document.getElementById('hljs-dark').disabled = !isDark;
+  mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
+});
+observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+</script>
+</body>
+</html>
