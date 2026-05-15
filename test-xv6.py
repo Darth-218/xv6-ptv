@@ -199,15 +199,15 @@ def test_usertests(test=""):
     q.monitor('^ALL TESTS PASSED', progress='test', timeout=timeout)
     q.stop()
 
-def test_pstree():
+def test_ptv_basic():
     """Boot xv6, run ptv, validate process tree output."""
     print("Test basic process tree")
     q = QEMU(True)
     q.cmd("ptv\n")
-    q.monitor(r'^init\(1\)', timeout=10)
+    q.monitor(r'^init\(1', timeout=10)
 
     lines = q.lines()
-    if not any(re.match(r'^init\(1\)', l) for l in lines):
+    if not any(re.match(r'^init\(1', l) for l in lines):
         print("FAIL: init(1) not found in ptv output")
         q.stop()
         sys.exit(1)
@@ -221,7 +221,7 @@ def test_pstree():
 
     q.stop()
 
-def test_pstree_forktree():
+def test_ptv_forktree():
     """Run forktree then ptv, verify multi-level hierarchy."""
     print("Test forktree hierarchy in ptv")
     q = QEMU(True)
@@ -232,7 +232,7 @@ def test_pstree_forktree():
     q.read()
 
     lines = q.lines()
-    if not any(re.search(r'forktree', l) for l in lines):
+    if not any(re.search(r'forktree\(', l) for l in lines):
         print("FAIL: forktree not found in ptv output")
         q.stop()
         sys.exit(1)
@@ -240,7 +240,7 @@ def test_pstree_forktree():
 
     q.stop()
 
-def test_pstree_orphans():
+def test_ptv_orphans():
     """Run orphantree then ptv, verify orphans shown under init."""
     print("Test orphan reparenting in ptv")
     q = QEMU(True)
@@ -259,7 +259,7 @@ def test_pstree_orphans():
 
     q.stop()
 
-def test_pstree_zombies():
+def test_ptv_zombies():
     """Verify zombie processes are marked in ptv output."""
     print("Test zombie marking in ptv")
     q = QEMU(True)

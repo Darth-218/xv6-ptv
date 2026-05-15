@@ -1,9 +1,9 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user/user.h"
+#include "kernel/param.h"
 #include "kernel/pinfo.h"
 
-#define NPROC 64
 #define MAX_DEPTH 32
 
 void print_process(struct pinfo *p, int depth) {
@@ -13,14 +13,14 @@ void print_process(struct pinfo *p, int depth) {
         else
             printf("      ");
     }
-    
-    if (p->state == ZOMBIE)
+
+    if (p->state == PINFO_ZOMBIE)
         printf("%s(%d,ZOMBIE)\n", p->name, p->pid);
-    else if (p->state == RUNNING)
+    else if (p->state == PINFO_RUNNING)
         printf("%s(%d,RUN)\n", p->name, p->pid);
-    else if (p->state == SLEEPING)
+    else if (p->state == PINFO_SLEEPING)
         printf("%s(%d,SLEEP)\n", p->name, p->pid);
-    else if (p->state == RUNNABLE)
+    else if (p->state == PINFO_RUNNABLE)
         printf("%s(%d,RDY)\n", p->name, p->pid);
     else
         printf("%s(%d)\n", p->name, p->pid);
@@ -39,18 +39,18 @@ void dfs(int parent_pid, int depth, struct pinfo *procs, int n, int *count) {
 int main(void) {
     struct pinfo procs[NPROC];
     int n, total_count = 0;
-    
+
     n = getprocs(procs, NPROC);
     if (n < 0) {
         printf("ptv: getprocs failed\n");
         exit(1);
     }
-    
+
     if (n == 0) {
         printf("No processes found\n");
         exit(0);
     }
-    
+
     struct pinfo *init = 0;
     for (int i = 0; i < n; i++) {
         if (procs[i].pid == 1) {
@@ -58,26 +58,26 @@ int main(void) {
             break;
         }
     }
-    
+
     if (!init) {
         printf("ptv: init process not found\n");
         exit(1);
     }
-    
+
     printf("%s(%d", init->name, init->pid);
-    if (init->state == ZOMBIE)
+    if (init->state == PINFO_ZOMBIE)
         printf(",ZOMBIE");
-    else if (init->state == RUNNING)
+    else if (init->state == PINFO_RUNNING)
         printf(",RUN");
-    else if (init->state == SLEEPING)
+    else if (init->state == PINFO_SLEEPING)
         printf(",SLEEP");
-    else if (init->state == RUNNABLE)
+    else if (init->state == PINFO_RUNNABLE)
         printf(",RDY");
     printf(")\n");
     total_count = 1;
-    
+
     dfs(1, 1, procs, n, &total_count);
-    
+
     printf("Total: %d processes\n", total_count);
     exit(0);
 }
